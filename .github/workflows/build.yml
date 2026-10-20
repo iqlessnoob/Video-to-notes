@@ -2,10 +2,10 @@ name: Build Video to Study PDF APK
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "**" ]
   pull_request:
     branches: [ "main", "master" ]
-  workflow_dispatch: # Allows you to click "Run workflow" manually in the GitHub Actions tab
+  workflow_dispatch:
 
 jobs:
   build-apk:
@@ -21,31 +21,35 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Setup Android SDK
+      - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Accept Android SDK Licenses & Install SDK 36.1
         run: |
+          export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
           yes | sdkmanager --licenses || true
-          sdkmanager "platforms;android-36.1" "build-tools;36.0.0"
+          sdkmanager "platforms;android-36" "platforms;android-36.1" "build-tools;36.0.0" || true
 
-      - name: Prepare .env file from .env.example and GitHub Secrets
+      - name: Create .env configuration file
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
-          TRUSTED_BACKEND_BASE_URL: ${{ secrets.TRUSTED_BACKEND_BASE_URL }}
+          TRUSTED_BACKEND_URL: ${{ secrets.TRUSTED_BACKEND_URL }}
           ADMOB_REWARDED_AD_UNIT_ID: ${{ secrets.ADMOB_REWARDED_AD_UNIT_ID }}
           PLAY_BILLING_SUBSCRIPTION_PRODUCT_ID: ${{ secrets.PLAY_BILLING_SUBSCRIPTION_PRODUCT_ID }}
         run: |
-          cp .env.example .env
+          if [ -f ".env.example" ]; then
+            cp .env.example .env
+          else
+            echo "GEMINI_API_KEY=MY_GEMINI_API_KEY" > .env
+            echo "TRUSTED_BACKEND_URL=https://api-pending-deployment.videotostudypdf.example.com/" >> .env
+            echo "ADMOB_REWARDED_AD_UNIT_ID=UNCONFIGURED_PRODUCTION_AD_UNIT_ID" >> .env
+            echo "PLAY_BILLING_SUBSCRIPTION_PRODUCT_ID=UNCONFIGURED_SUBSCRIPTION_PRODUCT_ID" >> .env
+          fi
           if [ -n "$GEMINI_API_KEY" ]; then
             sed -i "s|^GEMINI_API_KEY=.*|GEMINI_API_KEY=$GEMINI_API_KEY|" .env
           fi
-          if [ -n "$GOOGLE_WEB_CLIENT_ID" ]; then
-            sed -i "s|^GOOGLE_WEB_CLIENT_ID=.*|GOOGLE_WEB_CLIENT_ID=$GOOGLE_WEB_CLIENT_ID|" .env
-          fi
-          if [ -n "$TRUSTED_BACKEND_BASE_URL" ]; then
-            sed -i "s|^TRUSTED_BACKEND_BASE_URL=.*|TRUSTED_BACKEND_BASE_URL=$TRUSTED_BACKEND_BASE_URL|" .env
+          if [ -n "$TRUSTED_BACKEND_URL" ]; then
+            sed -i "s|^TRUSTED_BACKEND_URL=.*|TRUSTED_BACKEND_URL=$TRUSTED_BACKEND_URL|" .env
           fi
           if [ -n "$ADMOB_REWARDED_AD_UNIT_ID" ]; then
             sed -i "s|^ADMOB_REWARDED_AD_UNIT_ID=.*|ADMOB_REWARDED_AD_UNIT_ID=$ADMOB_REWARDED_AD_UNIT_ID|" .env
@@ -54,12 +58,13 @@ jobs:
             sed -i "s|^PLAY_BILLING_SUBSCRIPTION_PRODUCT_ID=.*|PLAY_BILLING_SUBSCRIPTION_PRODUCT_ID=$PLAY_BILLING_SUBSCRIPTION_PRODUCT_ID|" .env
           fi
 
-      - name: Ensure debug.keystore exists for signing
+      - name: Ensure debug.keystore exists for APK signing
         run: |
           if [ -f "debug.keystore.base64" ] && [ ! -f "debug.keystore" ]; then
-            base64 -d debug.keystore.base64 > debug.keystore
-          elif [ ! -f "debug.keystore" ]; then
-            keytool -genkey -v \
+            base64 -di debug.keystore.base64 > debug.keystore || rm -f debug.keystore
+          fi
+          if [ ! -f "debug.keystore" ]; then
+            keytool -genkeypair -v \
               -keystore debug.keystore \
               -storepass android \
               -alias androiddebugkey \
@@ -76,11 +81,11 @@ jobs:
           gradle-version: '9.3.1'
 
       - name: Build Debug APK
-        run: gradle :app:assembleDebug --no-daemon
+        run: gradle :app:assembleDebug --no-daemon --stacktrace
 
       - name: Upload Signed Debug APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Video-to-Study-PDF-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
