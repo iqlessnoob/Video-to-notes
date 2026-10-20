@@ -1,0 +1,254 @@
+{
+  "entities": {
+    "UserAccountProfile": {
+      "title": "UserAccountProfile",
+      "description": "User account profile and server-controlled credit and subscription ledger.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated user UID matching request.auth.uid."
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address from Google Sign-In."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name."
+        },
+        "preferredDetailLevel": {
+          "type": "string",
+          "enum": ["QUICK_SUMMARY", "STANDARD_NOTES", "DETAILED_STUDY_NOTES"],
+          "description": "Default study PDF detail level preference."
+        },
+        "bonusCreditsRemaining": {
+          "type": "integer",
+          "description": "One-time welcome bonus credits remaining (initialized to 3, server-controlled)."
+        },
+        "dailyFreeCredits": {
+          "type": "integer",
+          "description": "Daily free generation credits remaining (initialized to 1, server-controlled)."
+        },
+        "lastDailyResetEpochDay": {
+          "type": "integer",
+          "description": "UTC epoch day of last daily credit reset."
+        },
+        "rewardedAdCreditsToday": {
+          "type": "integer",
+          "description": "Extra generation credits earned from verified rewarded ads today (server-controlled)."
+        },
+        "rewardedAdsWatchedToday": {
+          "type": "integer",
+          "description": "Count of verified rewarded ads completed today (server-controlled)."
+        },
+        "subscriptionTier": {
+          "type": "string",
+          "enum": ["FREE", "PRO_STUDENT"],
+          "description": "Verified subscription entitlement tier (server-controlled)."
+        },
+        "subscriptionAllowanceRemaining": {
+          "type": "integer",
+          "description": "Remaining daily subscription generation allowance (server-controlled)."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Creation server timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update server timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "email",
+        "displayName",
+        "preferredDetailLevel",
+        "bonusCreditsRemaining",
+        "dailyFreeCredits",
+        "lastDailyResetEpochDay",
+        "rewardedAdCreditsToday",
+        "rewardedAdsWatchedToday",
+        "subscriptionTier",
+        "subscriptionAllowanceRemaining",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "StudyJob": {
+      "title": "StudyJob",
+      "description": "Video-to-Study-PDF processing job record and status tracker.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Owner user UID matching request.auth.uid."
+        },
+        "sourceType": {
+          "type": "string",
+          "enum": ["YOUTUBE", "LOCAL_FILE"],
+          "description": "Video input source type."
+        },
+        "sourceUri": {
+          "type": "string",
+          "description": "YouTube URL or local file URI identifier."
+        },
+        "videoTitle": {
+          "type": "string",
+          "description": "Resolved title of the educational video."
+        },
+        "videoDurationSeconds": {
+          "type": "integer",
+          "description": "Duration of the video in seconds."
+        },
+        "detailLevel": {
+          "type": "string",
+          "enum": ["QUICK_SUMMARY", "STANDARD_NOTES", "DETAILED_STUDY_NOTES"],
+          "description": "Selected study notes detail level."
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "VALIDATING",
+            "EXTRACTING",
+            "ANALYZING_SECTIONS",
+            "RENDERING_PDF",
+            "COMPLETED",
+            "FAILED",
+            "CANCELLED"
+          ],
+          "description": "Current pipeline stage status."
+        },
+        "progressPercent": {
+          "type": "integer",
+          "description": "Job completion percentage (0..100)."
+        },
+        "currentStageDetail": {
+          "type": "string",
+          "description": "Human-readable description of the active processing step."
+        },
+        "creditDeducted": {
+          "type": "boolean",
+          "description": "Whether a generation credit was reserved/deducted for this job."
+        },
+        "creditRefunded": {
+          "type": "boolean",
+          "description": "Whether the reserved credit was refunded due to a qualifying failure."
+        },
+        "errorMessage": {
+          "type": "string",
+          "description": "Optional diagnostic message when status is FAILED or CANCELLED."
+        },
+        "localPdfPath": {
+          "type": "string",
+          "description": "Optional path to the generated PDF document on device."
+        },
+        "contentHash": {
+          "type": "string",
+          "description": "Deterministic hash of source + detail level for caching."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Job creation server timestamp (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Job update server timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "sourceType",
+        "sourceUri",
+        "videoTitle",
+        "videoDurationSeconds",
+        "detailLevel",
+        "status",
+        "progressPercent",
+        "currentStageDetail",
+        "creditDeducted",
+        "creditRefunded",
+        "contentHash",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "MonetizationVerificationEvent": {
+      "title": "MonetizationVerificationEvent",
+      "description": "Append-only idempotent verification record for rewarded ad SSV, Play Billing purchases, and credit reservations.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated user UID."
+        },
+        "eventType": {
+          "type": "string",
+          "enum": [
+            "REWARDED_AD_SSV",
+            "PLAY_BILLING_PURCHASE",
+            "CREDIT_JOB_RESERVATION",
+            "CREDIT_JOB_REFUND"
+          ],
+          "description": "Type of monetization or credit verification event."
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "description": "Unique idempotency key matching document ID."
+        },
+        "referenceId": {
+          "type": "string",
+          "description": "Ad unit ID, Play subscription product ID, or StudyJob ID."
+        },
+        "verificationPayload": {
+          "type": "string",
+          "description": "Opaque verification token, SSV nonce, or purchase token."
+        },
+        "verificationStatus": {
+          "type": "string",
+          "enum": ["PENDING_SERVER_VERIFICATION"],
+          "description": "Initial status submitted by client for backend verification."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Event creation server timestamp (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "eventType",
+        "idempotencyKey",
+        "referenceId",
+        "verificationPayload",
+        "verificationStatus",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserAccountProfile"
+      },
+      "description": "Per-user account profile and server-guarded credit ledger."
+    },
+    "/study_jobs/{jobId}": {
+      "schema": {
+        "$ref": "#/entities/StudyJob"
+      },
+      "description": "Root collection of video-to-PDF processing jobs isolated by userId."
+    },
+    "/monetization_events/{eventId}": {
+      "schema": {
+        "$ref": "#/entities/MonetizationVerificationEvent"
+      },
+      "description": "Append-only idempotent verification ledger for ads, subscriptions, and credits."
+    }
+  }
+}

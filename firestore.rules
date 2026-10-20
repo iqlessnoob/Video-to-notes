@@ -1,0 +1,263 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Global Primitives ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidDetailLevel(level) {
+      return level is string && level in ['QUICK_SUMMARY', 'STANDARD_NOTES', 'DETAILED_STUDY_NOTES'];
+    }
+
+    // --- Validation Helpers ---
+
+    function isValidUserAccountProfile(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.email is string && data.email.size() >= 3 && data.email.size() <= 200 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 100 &&
+             isValidDetailLevel(data.preferredDetailLevel) &&
+             data.bonusCreditsRemaining is int && data.bonusCreditsRemaining >= 0 && data.bonusCreditsRemaining <= 1000 &&
+             data.dailyFreeCredits is int && data.dailyFreeCredits >= 0 && data.dailyFreeCredits <= 100 &&
+             data.lastDailyResetEpochDay is int && data.lastDailyResetEpochDay >= 0 && data.lastDailyResetEpochDay <= 1000000 &&
+             data.rewardedAdCreditsToday is int && data.rewardedAdCreditsToday >= 0 && data.rewardedAdCreditsToday <= 20 &&
+             data.rewardedAdsWatchedToday is int && data.rewardedAdsWatchedToday >= 0 && data.rewardedAdsWatchedToday <= 20 &&
+             data.subscriptionTier is string && data.subscriptionTier in ['FREE', 'PRO_STUDENT'] &&
+             data.subscriptionAllowanceRemaining is int && data.subscriptionAllowanceRemaining >= 0 && data.subscriptionAllowanceRemaining <= 1000 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidStudyJob(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.sourceType is string && data.sourceType in ['YOUTUBE', 'LOCAL_FILE'] &&
+             data.sourceUri is string && data.sourceUri.size() >= 1 && data.sourceUri.size() <= 1000 &&
+             data.videoTitle is string && data.videoTitle.size() >= 1 && data.videoTitle.size() <= 300 &&
+             data.videoDurationSeconds is int && data.videoDurationSeconds >= 1 && data.videoDurationSeconds <= 36000 &&
+             isValidDetailLevel(data.detailLevel) &&
+             data.status is string && data.status in [
+               'VALIDATING',
+               'EXTRACTING',
+               'ANALYZING_SECTIONS',
+               'RENDERING_PDF',
+               'COMPLETED',
+               'FAILED',
+               'CANCELLED'
+             ] &&
+             data.progressPercent is int && data.progressPercent >= 0 && data.progressPercent <= 100 &&
+             data.currentStageDetail is string && data.currentStageDetail.size() >= 1 && data.currentStageDetail.size() <= 500 &&
+             data.creditDeducted is bool &&
+             data.creditRefunded is bool &&
+             (!('errorMessage' in data) || data.errorMessage == null || (data.errorMessage is string && data.errorMessage.size() <= 1000)) &&
+             (!('localPdfPath' in data) || data.localPdfPath == null || (data.localPdfPath is string && data.localPdfPath.size() <= 1000)) &&
+             data.contentHash is string && data.contentHash.size() >= 1 && data.contentHash.size() <= 128 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidMonetizationEvent(data) {
+      return data.userId is string && data.userId == request.auth.uid &&
+             data.eventType is string && data.eventType in [
+               'REWARDED_AD_SSV',
+               'PLAY_BILLING_PURCHASE',
+               'CREDIT_JOB_RESERVATION',
+               'CREDIT_JOB_REFUND'
+             ] &&
+             isValidId(data.idempotencyKey) &&
+             data.referenceId is string && data.referenceId.size() >= 1 && data.referenceId.size() <= 256 &&
+             data.verificationPayload is string && data.verificationPayload.size() >= 1 && data.verificationPayload.size() <= 2048 &&
+             data.verificationStatus is string && data.verificationStatus == 'PENDING_SERVER_VERIFICATION' &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    // --- Collection Rules ---
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false;
+
+      // Client can only initialize profile with strict baseline free credits (3 bonus, 1 daily, FREE tier).
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().keys().hasAll([
+                         'userId',
+                         'email',
+                         'displayName',
+                         'preferredDetailLevel',
+                         'bonusCreditsRemaining',
+                         'dailyFreeCredits',
+                         'lastDailyResetEpochDay',
+                         'rewardedAdCreditsToday',
+                         'rewardedAdsWatchedToday',
+                         'subscriptionTier',
+                         'subscriptionAllowanceRemaining',
+                         'createdAt',
+                         'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId',
+                         'email',
+                         'displayName',
+                         'preferredDetailLevel',
+                         'bonusCreditsRemaining',
+                         'dailyFreeCredits',
+                         'lastDailyResetEpochDay',
+                         'rewardedAdCreditsToday',
+                         'rewardedAdsWatchedToday',
+                         'subscriptionTier',
+                         'subscriptionAllowanceRemaining',
+                         'createdAt',
+                         'updatedAt'
+                       ]) &&
+                       isValidUserAccountProfile(incoming()) &&
+                       incoming().bonusCreditsRemaining == 3 &&
+                       incoming().dailyFreeCredits == 1 &&
+                       incoming().rewardedAdCreditsToday == 0 &&
+                       incoming().rewardedAdsWatchedToday == 0 &&
+                       incoming().subscriptionTier == 'FREE' &&
+                       incoming().subscriptionAllowanceRemaining == 0;
+
+      // Client can NEVER edit credit balances or subscriptionTier; only profile preferences may be updated from client.
+      allow update: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       isValidUserAccountProfile(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().email == existing().email &&
+                       incoming().createdAt == existing().createdAt &&
+                       incoming().bonusCreditsRemaining == existing().bonusCreditsRemaining &&
+                       incoming().dailyFreeCredits == existing().dailyFreeCredits &&
+                       incoming().lastDailyResetEpochDay == existing().lastDailyResetEpochDay &&
+                       incoming().rewardedAdCreditsToday == existing().rewardedAdCreditsToday &&
+                       incoming().rewardedAdsWatchedToday == existing().rewardedAdsWatchedToday &&
+                       incoming().subscriptionTier == existing().subscriptionTier &&
+                       incoming().subscriptionAllowanceRemaining == existing().subscriptionAllowanceRemaining &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'displayName',
+                         'preferredDetailLevel',
+                         'updatedAt'
+                       ]);
+
+      allow delete: if false;
+    }
+
+    match /study_jobs/{jobId} {
+      allow get: if isSignedIn() && isValidId(jobId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+                       isValidId(jobId) &&
+                       incoming().keys().hasAll([
+                         'userId',
+                         'sourceType',
+                         'sourceUri',
+                         'videoTitle',
+                         'videoDurationSeconds',
+                         'detailLevel',
+                         'status',
+                         'progressPercent',
+                         'currentStageDetail',
+                         'creditDeducted',
+                         'creditRefunded',
+                         'contentHash',
+                         'createdAt',
+                         'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId',
+                         'sourceType',
+                         'sourceUri',
+                         'videoTitle',
+                         'videoDurationSeconds',
+                         'detailLevel',
+                         'status',
+                         'progressPercent',
+                         'currentStageDetail',
+                         'creditDeducted',
+                         'creditRefunded',
+                         'errorMessage',
+                         'localPdfPath',
+                         'contentHash',
+                         'createdAt',
+                         'updatedAt'
+                       ]) &&
+                       isValidStudyJob(incoming()) &&
+                       incoming().status == 'VALIDATING' &&
+                       incoming().creditRefunded == false;
+
+      allow update: if isSignedIn() &&
+                       isValidId(jobId) &&
+                       existing().userId == request.auth.uid &&
+                       isValidStudyJob(incoming()) &&
+                       incoming().userId == existing().userId &&
+                       incoming().sourceType == existing().sourceType &&
+                       incoming().sourceUri == existing().sourceUri &&
+                       incoming().contentHash == existing().contentHash &&
+                       incoming().creditDeducted == existing().creditDeducted &&
+                       incoming().creditRefunded == existing().creditRefunded &&
+                       incoming().createdAt == existing().createdAt &&
+                       !(existing().status in ['COMPLETED', 'FAILED', 'CANCELLED']) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly([
+                         'status',
+                         'progressPercent',
+                         'currentStageDetail',
+                         'errorMessage',
+                         'localPdfPath',
+                         'updatedAt'
+                       ]);
+
+      allow delete: if isSignedIn() && isValidId(jobId) && existing().userId == request.auth.uid;
+    }
+
+    match /monetization_events/{eventId} {
+      allow get: if isSignedIn() && isValidId(eventId) && existing().userId == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+
+      allow create: if isSignedIn() &&
+                       isValidId(eventId) &&
+                       eventId == incoming().idempotencyKey &&
+                       incoming().keys().hasAll([
+                         'userId',
+                         'eventType',
+                         'idempotencyKey',
+                         'referenceId',
+                         'verificationPayload',
+                         'verificationStatus',
+                         'createdAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId',
+                         'eventType',
+                         'idempotencyKey',
+                         'referenceId',
+                         'verificationPayload',
+                         'verificationStatus',
+                         'createdAt'
+                       ]) &&
+                       isValidMonetizationEvent(incoming());
+
+      // Append-only ledger: clients cannot mutate or delete submitted verification requests
+      allow update, delete: if false;
+    }
+  }
+}

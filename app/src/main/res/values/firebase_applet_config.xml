@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="firestore_database_id" translatable="false">demo-database</string>
+    <string name="default_web_client_id" translatable="false">PENDING_FIREBASE_PROVISIONING_WEB_CLIENT_ID</string>
+</resources>

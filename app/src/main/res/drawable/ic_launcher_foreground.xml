@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Document Page Silhouette inside 66dp safe zone (x: 26..82, y: 24..84) -->
+    <path
+        android:fillColor="#FAF8F5"
+        android:pathData="M32,26h32l12,12v40c0,2.2 -1.8,4 -4,4H32c-2.2,0 -4,-1.8 -4,-4V30c0,-2.2 1.8,-4 4,-4z" />
+    <!-- Folded corner accent -->
+    <path
+        android:fillColor="#93C5FD"
+        android:pathData="M64,26v12h12z" />
+    <!-- Golden Play Emblem Badge overlapping page -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M43,43l22,13l-22,13z" />
+    <!-- Study lines at bottom of page -->
+    <path
+        android:fillColor="#1D4ED8"
+        android:pathData="M35,72h34v3h-34z" />
+</vector>

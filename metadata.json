@@ -1,0 +1,6 @@
+{
+  "name": "Video to Study PDF",
+  "description": "Convert educational YouTube lectures and local videos into structured study PDFs with formulas, diagrams, and section notes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">Video to Study PDF</string>
+    <string name="welcome_title">Turn Lectures Into Textbook-Grade Study PDFs</string>
+    <string name="welcome_subtitle">Analyze YouTube lectures or local device videos into structured notes with rendered equations, vector diagrams, and revision quizzes.</string>
+    <string name="sign_in_with_google">Sign in with Google</string>
+    <string name="nav_home">Study Studio</string>
+    <string name="nav_library">PDF Library</string>
+    <string name="nav_credits">Credits</string>
+    <string name="nav_upgrade">Pro &amp; Ads</string>
+    <string name="nav_settings">Settings</string>
+    <string name="youtube_url_label">Public YouTube Video URL</string>
+    <string name="youtube_url_placeholder">https://www.youtube.com/watch?v=...</string>
+    <string name="validate_youtube_button">Inspect YouTube Video</string>
+    <string name="pick_local_video_button">Select Local Video File</string>
+    <string name="generate_pdf_button">Generate Study PDF (1 Credit)</string>
+    <string name="watch_rewarded_ad_button">Watch Verified Rewarded Ad (+1 Credit)</string>
+    <string name="subscribe_pro_button">Subscribe to Pro Student Plan</string>
+    <string name="restore_purchases_button">Restore Purchases</string>
+    <string name="download_pdf_button">Download PDF</string>
+    <string name="share_pdf_button">Share PDF</string>
+    <string name="cancel_job_button">Cancel Processing</string>
+</resources>
